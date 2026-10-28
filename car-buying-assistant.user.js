@@ -502,7 +502,7 @@
 
   const NO_FIRM_PRICE_RE = /\b(obo|o\.?b\.?o\.?|make offer|poa|or offers|offers invited)\b/i;
   const SCAM_PHRASES_RE = /\b(no test drives?|courier only|selling (for|on behalf of) a friend|no returns|must sell today|cash only.{0,15}collect|can'?t view before buying)\b/i;
-  const MILEAGE_RE = /\b\d{1,3}[,.]?\d{0,3}\s?(miles|mi\.?|km|kilometres|kilometers)\b/i;
+  const MILEAGE_RE = /\b\d{1,3}(?:[,.]?\d{3}|k)?\s?(miles|mi\.?|km|kilometres|kilometers)\b/i;
   const MOT_MENTION_RE = /\bmot\b/i;
   const SERVICE_HISTORY_RE = /\bservice history\b/i;
 
@@ -556,7 +556,10 @@
     collapseState.collapsed = false;
   }
 
-  function runIndividualListingChecks() {
+  const DESCRIPTION_RETRIES = 6;
+  const DESCRIPTION_RETRY_MS = 500;
+
+  function runIndividualListingChecks(attempt = 0) {
     if (!adapter.isIndividualListing()) {
       clearBanner();
       return;
@@ -564,6 +567,10 @@
 
     const description = adapter.getDescription();
     if (!description) {
+      if (attempt < DESCRIPTION_RETRIES) {
+        setTimeout(() => runIndividualListingChecks(attempt + 1), DESCRIPTION_RETRY_MS);
+        return;
+      }
       setStatus('Could not read listing description (selectors may need updating).');
       return;
     }
