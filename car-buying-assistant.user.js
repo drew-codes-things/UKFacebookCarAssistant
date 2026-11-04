@@ -355,6 +355,9 @@
   function renderMotHistory() {
     const list = document.getElementById('cba-mot-history');
     const count = document.getElementById('cba-mot-count');
+    state.motHistory = state.motHistory.filter(
+      (entry) => entry && typeof entry.plate === 'string' && /^[A-Z0-9+]{1,12}$/.test(entry.plate)
+    );
     count.textContent = state.motHistory.length;
     list.innerHTML = state.motHistory
       .map((entry) => {
