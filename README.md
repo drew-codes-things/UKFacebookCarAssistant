@@ -1,5 +1,7 @@
 # UKFacebookCarAssistant
 
+![The UKFacebookCarAssistant widget with the DVSA API access section open](screenshot.png)
+
 A Tampermonkey userscript that adds a floating research widget to Facebook Marketplace to speed up buying a car. It runs client-side with no server and no cost. The only network calls are the optional DVSA MOT History lookups, made with your own free API credentials.
 
 ## Features
