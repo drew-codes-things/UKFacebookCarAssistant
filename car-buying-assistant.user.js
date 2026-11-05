@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UKFacebookCarAssistant
 // @namespace    https://github.com/drew-codes-things/UKFacebookCarAssistant
-// @version      1.1.0
+// @version      1.1.1
 // @description  DVSA MOT history, price/watchlist filtering, and time-waster flagging for Facebook Marketplace
 // @author       drew-codes-things
 // @match        https://www.facebook.com/marketplace/*
@@ -393,17 +393,19 @@ function startCarAssistant(mot) {
 
   GM_addStyle(`
     #cba-widget {
-      --void: #07090c;
-      --panel: #0e1116;
-      --panel-raised: #12161c;
-      --line: #1e252b;
-      --line-bright: #313a42;
-      --signal: #ff4d2e;
-      --phosphor: #35d67c;
-      --amber: #ffb020;
-      --text: #d7dbde;
-      --text-dim: #7d8891;
-      --text-faint: #4b545c;
+      --void: #0a0a0b;
+      --panel: rgba(255, 255, 255, .045);
+      --panel-raised: rgba(255, 255, 255, .07);
+      --line: rgba(255, 255, 255, .08);
+      --line-bright: rgba(255, 255, 255, .14);
+      --signal: #e5383b;
+      --signal-deep: #7a0f14;
+      --signal-soft: #f5c2c3;
+      --phosphor: #4ade80;
+      --amber: #fbbf24;
+      --text: #ececec;
+      --text-dim: #a1a1a6;
+      --text-faint: #6b6b72;
       --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
       --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 
@@ -413,102 +415,107 @@ function startCarAssistant(mot) {
       width: 300px;
       max-height: 85vh;
       overflow-y: auto;
-      background: var(--panel);
+      background: radial-gradient(120% 70% at 0% 0%, rgba(160, 20, 28, .38), transparent 60%), linear-gradient(165deg, #1c0608 0%, #0d0b0c 42%, #070708 100%);
       color: var(--text);
-      border: 1px solid var(--line);
-      border-radius: 2px;
-      box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+      border: 1px solid var(--line-bright);
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
       font: 13px/1.5 var(--sans);
       z-index: 999999;
     }
     #cba-widget * { box-sizing: border-box; }
     #cba-widget ::-webkit-scrollbar { width: 8px; }
-    #cba-widget ::-webkit-scrollbar-thumb { background: var(--line-bright); border-radius: 2px; }
-    #cba-widget ::-webkit-scrollbar-track { background: var(--panel); }
+    #cba-widget ::-webkit-scrollbar-thumb { background: var(--line-bright); border-radius: 999px; }
+    #cba-widget ::-webkit-scrollbar-track { background: transparent; }
 
     #cba-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 12px; cursor: move; background: var(--panel-raised);
+      padding: 12px 14px; cursor: move; background: rgba(10, 10, 11, .55);
       border-bottom: 1px solid var(--line);
-      font-family: var(--mono); font-weight: 600; font-size: 12px;
-      text-transform: uppercase; letter-spacing: .04em; color: var(--text);
+      font-family: var(--sans); font-weight: 600; font-size: 13px; color: var(--text);
       user-select: none;
     }
-    #cba-header span::after { content: "_"; color: var(--signal); animation: cba-blink 1.1s steps(1) infinite; margin-left: 2px; }
-    @keyframes cba-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
     #cba-header button {
       background: none; border: none; color: var(--text-dim); cursor: pointer;
-      font-family: var(--mono); font-size: 14px;
+      font-family: var(--sans); font-size: 14px;
     }
     #cba-header button:hover { color: var(--signal); }
 
     #cba-body { padding: 12px; }
     #cba-body.cba-hidden { display: none; }
 
-    .cba-section { position: relative; margin-bottom: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
-    .cba-section:first-child { border-top: none; padding-top: 0; }
-    .cba-section h4 {
-      margin: 0 0 8px; font-family: var(--mono); font-size: 11px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: .04em; color: var(--signal);
+    .cba-section {
+      position: relative; margin-bottom: 12px; padding: 12px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
     }
-    .cba-section h4::before { content: "// "; color: var(--text-faint); }
+    .cba-section:last-child { margin-bottom: 0; }
+    .cba-section h4 {
+      margin: 0 0 8px; font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--signal-soft);
+    }
 
     .cba-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
     .cba-row input[type="text"], .cba-row input[type="number"], .cba-widget-textarea {
       flex: 1; background: var(--panel-raised); border: 1px solid var(--line); color: var(--text);
-      border-radius: 2px; padding: 6px 8px; font: 12px var(--mono); width: 100%;
+      border-radius: 10px; padding: 7px 10px; font: 12px var(--sans); width: 100%;
     }
     .cba-row input:focus, .cba-widget-textarea:focus {
-      outline: none; border-color: var(--signal);
+      outline: none; border-color: rgba(229, 56, 59, .55);
     }
     .cba-widget-textarea { min-height: 70px; resize: vertical; }
 
     .cba-btn {
-      background: transparent; border: 1px solid var(--signal); color: var(--signal);
-      padding: 6px 12px; border-radius: 2px; cursor: pointer;
-      font: 11px var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: .03em;
-      white-space: nowrap; transition: background-color .15s ease, color .15s ease;
+      background: linear-gradient(135deg, var(--signal), var(--signal-deep)); border: 1px solid transparent; color: #fff;
+      padding: 7px 12px; border-radius: 10px; cursor: pointer;
+      font: 500 12px var(--sans);
+      white-space: nowrap; transition: filter .15s ease;
     }
-    .cba-btn:hover { background-color: var(--signal); color: var(--void); }
+    .cba-btn:hover { filter: brightness(1.12); }
     .cba-btn:active { transform: scale(.97); }
-    .cba-btn.secondary { border-color: var(--line-bright); color: var(--text-dim); }
-    .cba-btn.secondary:hover { background-color: var(--panel-raised); color: var(--text); border-color: var(--text-dim); }
+    .cba-btn.secondary { background: var(--panel-raised); border-color: var(--line-bright); color: var(--text-dim); }
+    .cba-btn.secondary:hover { filter: none; background: rgba(255, 255, 255, .11); color: var(--text); }
 
-    .cba-hint { color: var(--text-faint); font-size: 11px; margin-top: 4px; font-family: var(--mono); }
-    .cba-warn { color: var(--amber); font-size: 11px; margin-top: 4px; font-family: var(--mono); }
+    .cba-hint { color: var(--text-faint); font-size: 11px; margin-top: 4px; }
+    .cba-warn { color: var(--amber); font-size: 11px; margin-top: 4px; }
 
-    #cba-widget details summary { color: var(--text-dim); cursor: pointer; font-family: var(--mono); font-size: 11px; }
+    #cba-widget details summary { color: var(--text-dim); cursor: pointer; font-size: 12px; }
     #cba-mot-history { list-style: none; margin: 6px 0 0; padding: 0; max-height: 140px; overflow-y: auto; }
     #cba-mot-history li { padding: 4px 0; border-bottom: 1px solid var(--line); font: 11px var(--mono); }
-    #cba-mot-history a { color: var(--signal); text-decoration: none; }
-    #cba-mot-history a:hover { color: #ff7a5c; text-decoration: underline; }
+    #cba-mot-history a { color: var(--signal-soft); text-decoration: none; }
+    #cba-mot-history a:hover { color: #fff; text-decoration: underline; }
     #cba-mot-history .cba-ts { color: var(--text-faint); float: right; }
 
-    .cba-chip { margin: 0 4px 4px 0; padding: 2px 8px; }
+    .cba-chip { margin: 0 4px 4px 0; padding: 2px 10px; border-radius: 999px; }
     .cba-mot-title { font-weight: 600; font-size: 13px; margin: 8px 0 0; }
     .cba-sub { color: var(--text-dim); font: 11px var(--mono); }
-    .cba-mot-status { font: 600 11px var(--mono); margin: 6px 0; }
+    .cba-mot-status { font: 600 12px var(--sans); margin: 6px 0; }
     .cba-good { color: var(--phosphor); }
     .cba-bad { color: var(--signal); }
-    .cba-mot-warnings { margin: 6px 0; padding: 6px 6px 6px 22px; border: 1px solid var(--signal); font-size: 11px; }
+    .cba-mot-warnings {
+      margin: 6px 0; padding: 6px 8px 6px 24px; font-size: 11px; color: var(--signal-soft);
+      background: rgba(229, 56, 59, .14); border: 1px solid rgba(229, 56, 59, .4); border-radius: 10px;
+    }
     .cba-mot-tests { list-style: none; margin: 6px 0 0; padding: 0; max-height: 260px; overflow-y: auto; }
     .cba-mot-tests > li { border-top: 1px solid var(--line); padding: 5px 0; font-size: 11px; }
     .cba-mot-tests ul { margin: 3px 0 0; padding-left: 14px; color: var(--text-dim); }
     .cba-defect-DANGEROUS, .cba-defect-MAJOR, .cba-defect-FAIL { color: var(--signal); }
     .cba-defect-MINOR { color: var(--amber); }
     #cba-dvsa-settings { margin-top: 8px; }
-    #cba-dvsa-settings .cba-row input { flex: 1; width: 100%; background: var(--panel-raised); border: 1px solid var(--line); color: var(--text); border-radius: 2px; padding: 6px 8px; font: 12px var(--mono); }
+    #cba-dvsa-settings .cba-row input { flex: 1; width: 100%; background: var(--panel-raised); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 7px 10px; font: 12px var(--sans); }
 
     .cba-flag-banner {
       position: sticky; top: 0; z-index: 999998; padding: 10px 12px; margin: -12px -12px 12px;
-      background: var(--panel-raised); border-bottom: 2px solid var(--amber);
-      font: 11px var(--mono); color: var(--text);
+      background: rgba(28, 6, 8, .92); backdrop-filter: blur(12px); border-bottom: 2px solid var(--amber);
+      font: 12px var(--sans); color: var(--text);
     }
     .cba-flag-banner ul { margin: 6px 0 0; padding-left: 16px; color: var(--text-dim); }
     .cba-flag-banner ul li { margin-bottom: 2px; }
     .cba-collapse-toggle { margin-top: 8px; }
 
-    #cba-status-text { font-family: var(--mono); }
+    #cba-status-text { font-family: var(--sans); }
+
+    @media (prefers-reduced-motion: reduce) {
+      #cba-widget *, #cba-widget *::before, #cba-widget *::after { transition-duration: .001ms !important; }
+    }
   `);
 
   const widgetRoot = document.createElement('div');

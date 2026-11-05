@@ -1,6 +1,6 @@
 {
   "name": "uk-facebook-car-assistant",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Tampermonkey userscript: DVSA MOT history, price/watchlist filtering and time-waster flagging for Facebook Marketplace",
   "scripts": {
