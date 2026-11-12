@@ -4,6 +4,7 @@
 // @version      1.1.1
 // @description  DVSA MOT history, price/watchlist filtering, and time-waster flagging for Facebook Marketplace
 // @author       drew-codes-things
+// @license      MIT
 // @match        https://www.facebook.com/marketplace/*
 // @grant        GM_setValue
 // @grant        GM_getValue
