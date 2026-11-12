@@ -322,6 +322,8 @@ function startCarAssistant(mot) {
   }
 
   const FB_CARD_ANCESTOR_LEVELS = 3;
+  const LISTING_ID_RE = /\/marketplace\/item\/(\d+)/;
+  const NO_LISTING = '';
 
   function fbCardFromAnchor(anchor) {
     let node = anchor;
@@ -337,8 +339,9 @@ function startCarAssistant(mot) {
         !/\/marketplace\/item\//.test(location.pathname);
     },
 
-    isIndividualListing() {
-      return /\/marketplace\/item\/\d+/.test(location.pathname);
+    getListingId() {
+      const match = location.pathname.match(LISTING_ID_RE);
+      return match ? match[1] : NO_LISTING;
     },
 
     getListingCards() {
@@ -373,15 +376,6 @@ function startCarAssistant(mot) {
     getPriceText(card) {
       const texts = this._spanTexts(card);
       return texts.find((t) => CURRENCY_RE.test(t)) || '';
-    },
-
-    getDescription() {
-      const main = document.querySelector('div[role="main"]') || document.body;
-      const candidates = Array.from(main.querySelectorAll('span'))
-        .map((s) => textOf(s))
-        .filter((t) => t.length > 40);
-      candidates.sort((a, b) => b.length - a.length);
-      return candidates[0] || '';
     },
 
     getCollapseTarget() {
@@ -646,8 +640,6 @@ function startCarAssistant(mot) {
 
   const REQUEST_TIMEOUT_MS = 20000;
   const TOKEN_EXPIRY_MARGIN_MS = 60 * 1000;
-  const LISTING_ID_RE = /\/marketplace\/item\/(\d+)/;
-  const NO_LISTING = '';
   const SECRET_FIELDS = ['clientSecret', 'apiKey'];
   const NO_TOKEN = { value: '', expiresAt: 0 };
 
@@ -902,11 +894,6 @@ function startCarAssistant(mot) {
     return main ? main.innerText : '';
   }
 
-  function currentListingId() {
-    const match = location.pathname.match(LISTING_ID_RE);
-    return match ? match[1] : NO_LISTING;
-  }
-
   function showSpottedPlates(plates) {
     motDetected.replaceChildren();
     if (!plates.length) return;
@@ -914,27 +901,6 @@ function startCarAssistant(mot) {
       element('div', { class: 'cba-hint', text: 'Spotted in the listing (tap to check):' }),
       ...plates.map((plate) => element('button', { class: 'cba-btn secondary cba-chip', text: plate, onclick: () => checkMot(plate) })),
     );
-  }
-
-  function leaveListing() {
-    cancelPendingMotLookups();
-    motResult.replaceChildren();
-    motDetected.replaceChildren();
-    listingMileage = null;
-  }
-
-  function refreshListingScan() {
-    const id = currentListingId();
-    if (id !== scannedListing.id) {
-      leaveListing();
-      scannedListing = { id, text: null };
-    }
-    if (id === NO_LISTING) return;
-    const text = listingText();
-    if (text === scannedListing.text) return;
-    scannedListing.text = text;
-    listingMileage = mot.parseListingMileage(text);
-    showSpottedPlates(mot.findPlates(text));
   }
 
   fillDvsaSettings();
@@ -1052,29 +1018,29 @@ function startCarAssistant(mot) {
     setStatus(`${shown}/${cards.length} listings shown`);
   }
 
-  const NO_FIRM_PRICE_RE = /\b(obo|o\.?b\.?o\.?|make offer|poa|or offers|offers invited)\b/i;
+  const NO_FIRM_PRICE_RE = /\b(obo|o\.?b\.?o\.?|o\.?n\.?o\.?|o\.?v\.?n\.?o\.?|make offer|poa|or offers|offers invited)\b/i;
   const SCAM_PHRASES_RE = /\b(no test drives?|courier only|selling (for|on behalf of) a friend|no returns|must sell today|cash only.{0,15}collect|can'?t view before buying)\b/i;
-  const MILEAGE_RE = /\b\d{1,3}(?:[,.]?\d{3}|k)?\s?(miles|mi\.?|km|kilometres|kilometers)\b/i;
-  const MOT_MENTION_RE = /\bmot\b/i;
-  const SERVICE_HISTORY_RE = /\bservice history\b/i;
+  const MOT_MENTION_RE = /\bm\.?o\.?t\b/i;
+  const SERVICE_HISTORY_RE = /\b(service history|f\.?d?\.?s\.?h|p\.?s\.?h)\b/i;
 
   const TIME_WASTER_THRESHOLD = 2;
+  const LISTING_TEXT_MISSING = 'Could not read the listing text (selectors may need updating).';
 
-  function scoreListing(descriptionText, priceText) {
-    const combined = `${priceText || ''} ${descriptionText || ''}`;
+  function scoreListing(text) {
     const flags = [];
 
-    if (NO_FIRM_PRICE_RE.test(combined)) flags.push('No firm price (OBO/offers/POA)');
-    if (SCAM_PHRASES_RE.test(combined)) flags.push('Scam/red-flag phrasing');
-    if (!MILEAGE_RE.test(descriptionText)) flags.push('No mileage mentioned');
-    if (!MOT_MENTION_RE.test(descriptionText)) flags.push('No MOT mentioned');
-    if (!SERVICE_HISTORY_RE.test(descriptionText)) flags.push('No service history mentioned');
+    if (NO_FIRM_PRICE_RE.test(text)) flags.push('No firm price (ONO/OBO/offers/POA)');
+    if (SCAM_PHRASES_RE.test(text)) flags.push('Scam/red-flag phrasing');
+    if (!mot.parseListingMileage(text)) flags.push('No mileage mentioned');
+    if (!MOT_MENTION_RE.test(text)) flags.push('No MOT mentioned');
+    if (!SERVICE_HISTORY_RE.test(text)) flags.push('No service history mentioned');
 
     return flags;
   }
 
   const NOT_COLLAPSED = { target: null, originalStyles: null };
   let collapseState = NOT_COLLAPSED;
+  let listingExpandedByUser = false;
 
   function clearBanner() {
     const existing = document.getElementById('cba-flag-banner');
@@ -1110,43 +1076,58 @@ function startCarAssistant(mot) {
     collapseState = NOT_COLLAPSED;
   }
 
-  const DESCRIPTION_RETRIES = 6;
-  const DESCRIPTION_RETRY_MS = 500;
-
-  function runIndividualListingChecks(attempt = 0) {
-    if (!adapter.isIndividualListing()) {
+  function showFlagBanner(flags) {
+    insertBanner(
+      `⚠ ${flags.length} flags
+       <ul>${flags.map((f) => `<li>${f}</li>`).join('')}</ul>
+       <div class="cba-collapse-toggle"><button class="cba-btn secondary" id="cba-expand-btn">Expand listing</button></div>`
+    );
+    document.getElementById('cba-expand-btn').addEventListener('click', () => {
+      listingExpandedByUser = true;
+      expandCollapsedTarget();
       clearBanner();
+    });
+  }
+
+  function checkListingForTimeWasting(text) {
+    if (!text) {
+      setStatus(LISTING_TEXT_MISSING);
       return;
     }
-
-    const description = adapter.getDescription();
-    if (!description) {
-      if (attempt < DESCRIPTION_RETRIES) {
-        setTimeout(() => runIndividualListingChecks(attempt + 1), DESCRIPTION_RETRY_MS);
-        return;
-      }
-      setStatus('Could not read listing description (selectors may need updating).');
-      return;
-    }
-
-    const target = adapter.getCollapseTarget();
-    const flags = scoreListing(description, '');
-
-    if (flags.length >= TIME_WASTER_THRESHOLD) {
-      insertBanner(
-        `⚠ ${flags.length} flags
-         <ul>${flags.map((f) => `<li>${f}</li>`).join('')}</ul>
-         <div class="cba-collapse-toggle"><button class="cba-btn secondary" id="cba-expand-btn">Expand listing</button></div>`
-      );
-      collapseTarget(target);
-      document.getElementById('cba-expand-btn').addEventListener('click', () => {
-        expandCollapsedTarget();
-        clearBanner();
-      });
-    } else {
+    setStatus('-');
+    const flags = scoreListing(text);
+    if (flags.length < TIME_WASTER_THRESHOLD || listingExpandedByUser) {
       clearBanner();
       expandCollapsedTarget();
+      return;
     }
+    showFlagBanner(flags);
+    collapseTarget(adapter.getCollapseTarget());
+  }
+
+  function leaveListing() {
+    cancelPendingMotLookups();
+    motResult.replaceChildren();
+    motDetected.replaceChildren();
+    listingMileage = null;
+    expandCollapsedTarget();
+    clearBanner();
+    listingExpandedByUser = false;
+  }
+
+  function refreshListing() {
+    const id = adapter.getListingId();
+    if (id !== scannedListing.id) {
+      leaveListing();
+      scannedListing = { id, text: null };
+    }
+    if (id === NO_LISTING) return;
+    const text = listingText();
+    if (text === scannedListing.text) return;
+    scannedListing.text = text;
+    listingMileage = mot.parseListingMileage(text);
+    showSpottedPlates(mot.findPlates(text));
+    checkListingForTimeWasting(text);
   }
 
   const debouncedApplyFiltersFromDom = debounce(() => {
@@ -1158,19 +1139,15 @@ function startCarAssistant(mot) {
 
   let lastPath = location.href;
   setInterval(() => {
-    refreshListingScan();
+    refreshListing();
     if (location.href !== lastPath) {
       lastPath = location.href;
-      expandCollapsedTarget();
-      clearBanner();
       setTimeout(() => {
         if (adapter.isSearchGrid()) applyFilters();
-        if (adapter.isIndividualListing()) runIndividualListingChecks();
       }, 400);
     }
   }, 600);
 
   if (adapter.isSearchGrid()) applyFilters();
-  if (adapter.isIndividualListing()) runIndividualListingChecks();
-  refreshListingScan();
+  refreshListing();
 }

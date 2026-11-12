@@ -140,3 +140,46 @@ test('a collapsed listing is restored when leaving it, and Expand works on the n
   assert.deepEqual(collapseStyles(page), { maxHeight: '', overflow: '' });
   page.close();
 });
+
+const ORDINARY_ADVERT = '<h1>2015 Ford Focus 1.6 Zetec</h1><span>£4,500</span><div><span>Driven 85,000 miles</span></div>'
+  + '<div><span>Lovely car, FSH, 12 months M.O.T, two keys, cambelt done</span></div>';
+
+function noMotAdvert(priceText) {
+  return `<h1>2015 Ford Focus</h1><span>${priceText}</span><div><span>Driven 85,000 miles</span></div>`
+    + '<div><span>Lovely car with full service history, two keys and a new clutch</span></div>';
+}
+
+function bannerText(page) {
+  const banner = page.document.getElementById('cba-flag-banner');
+  return banner ? banner.textContent : '';
+}
+
+test('an ordinary advert with FSH, M.O.T and a Driven field is not collapsed', { skip: SKIP }, async () => {
+  const page = open({ path: '/marketplace/item/111/', mainHtml: ORDINARY_ADVERT });
+  await page.advance(SETTLE_MS);
+  assert.equal(bannerText(page), '');
+  assert.deepEqual(collapseStyles(page), { maxHeight: '', overflow: '' });
+  page.close();
+});
+
+test('UK "ono" and "ovno" next to the price count as no firm price', { skip: SKIP }, async () => {
+  for (const priceText of ['£4,500 ono', '£4,500 ovno']) {
+    const page = open({ path: '/marketplace/item/111/', mainHtml: noMotAdvert(priceText) });
+    await page.advance(SETTLE_MS);
+    assert.match(bannerText(page), /No firm price/, priceText);
+    assert.match(bannerText(page), /No MOT mentioned/, priceText);
+    assert.doesNotMatch(bannerText(page), /No mileage mentioned|No service history mentioned/, priceText);
+    page.close();
+  }
+});
+
+test('a listing expanded by the user stays expanded when its text changes', { skip: SKIP }, async () => {
+  const page = open({ path: '/marketplace/item/111/', mainHtml: FLAGGED_LISTING });
+  await page.advance(SETTLE_MS);
+  page.document.getElementById('cba-expand-btn').click();
+  page.setMain(`${FLAGGED_LISTING}<span>Seller replied: still available</span>`);
+  await page.advance(SETTLE_MS);
+  assert.equal(bannerText(page), '');
+  assert.deepEqual(collapseStyles(page), { maxHeight: '', overflow: '' });
+  page.close();
+});
