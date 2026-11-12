@@ -331,9 +331,14 @@ function startCarAssistant(mot) {
     }
   }
 
+  function loadList(key) {
+    const saved = loadJSON(key, []);
+    return Array.isArray(saved) ? saved : [];
+  }
+
   const state = {
-    motHistory: loadJSON(STORAGE_KEYS.MOT_HISTORY, []),
-    watchlist: loadJSON(STORAGE_KEYS.WATCHLIST, []),
+    motHistory: loadList(STORAGE_KEYS.MOT_HISTORY),
+    watchlist: loadList(STORAGE_KEYS.WATCHLIST),
     settings: Object.assign({}, DEFAULT_SETTINGS, loadJSON(STORAGE_KEYS.SETTINGS, {})),
   };
 
