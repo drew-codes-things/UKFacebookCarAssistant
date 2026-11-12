@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UKFacebookCarAssistant
 // @namespace    https://github.com/drew-codes-things/UKFacebookCarAssistant
-// @version      1.1.1
+// @version      1.1.2
 // @description  DVSA MOT history, price/watchlist filtering, and time-waster flagging for Facebook Marketplace
 // @author       drew-codes-things
 // @license      MIT
