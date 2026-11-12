@@ -42,7 +42,8 @@ const CarAssistantMot = (() => {
   const SEPTEMBER_AGE_OFFSET = 50;
   const YEARS_PER_CENTURY = 100;
   const DRIVEN_RE = /driven\s+(\d[\d,.]*)\s*(k)?\s*(miles|mi|km|kilomet(?:re|er)s)\b/i;
-  const MILEAGE_RE = /\b(\d[\d,.]*)\s*(k)?\s*(miles|mi|km|kilomet(?:re|er)s)\b/i;
+  const MILEAGE_RE = /\b(\d[\d,.]*)\s*(k)?\s*(miles|mi|km|kilomet(?:re|er)s)\b(?!\s+(?:from|away|radius)\b)/gi;
+  const MAX_PLAUSIBLE_MILES = 500000;
 
   const ERROR_MESSAGES = {
     'MOTH-NF-01': 'No MOT or vehicle record found for that registration.',
@@ -92,9 +93,21 @@ const CarAssistantMot = (() => {
     return { value, unit: /^k/i.test(match[3]) ? 'KM' : 'MI' };
   }
 
+  function largestPlausibleMileage(mileages) {
+    let largest = null;
+    for (const mileage of mileages) {
+      const miles = toMiles(mileage.value, mileage.unit);
+      if (miles > MAX_PLAUSIBLE_MILES) continue;
+      if (!largest || miles > toMiles(largest.value, largest.unit)) largest = mileage;
+    }
+    return largest;
+  }
+
   function parseListingMileage(text) {
     const source = String(text || '');
-    return parseMileageMatch(source.match(DRIVEN_RE)) || parseMileageMatch(source.match(MILEAGE_RE));
+    const driven = parseMileageMatch(source.match(DRIVEN_RE));
+    if (driven) return driven;
+    return largestPlausibleMileage([...source.matchAll(MILEAGE_RE)].map(parseMileageMatch).filter(Boolean));
   }
 
   function toMiles(value, unit) {

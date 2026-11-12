@@ -76,6 +76,15 @@ test('parseListingMileage prefers the Facebook "Driven" field', () => {
   assert.equal(mot.parseListingMileage('no mileage here'), null);
 });
 
+test('parseListingMileage takes the largest plausible figure and skips distances', () => {
+  assert.deepEqual(mot.parseListingMileage('Only 5 miles from the M1. 80,000 miles on the clock'), { value: 80000, unit: 'MI' });
+  assert.deepEqual(mot.parseListingMileage('Collection 10 miles away, 62k miles'), { value: 62000, unit: 'MI' });
+  assert.equal(mot.parseListingMileage('Will deliver within a 30 miles radius'), null);
+  assert.deepEqual(mot.parseListingMileage('Cambelt done at 60,000 miles, now 90,000 miles'), { value: 90000, unit: 'MI' });
+  assert.deepEqual(mot.parseListingMileage('120,000 km (75,000 miles)'), { value: 75000, unit: 'MI' });
+  assert.deepEqual(mot.parseListingMileage('2,000,000 miles of smiles, really 45k miles'), { value: 45000, unit: 'MI' });
+});
+
 test('isValidTokenUrl only accepts the Microsoft token endpoint', () => {
   assert.ok(mot.isValidTokenUrl('https://login.microsoftonline.com/a1b2c3d4-0000-1111-2222-333344445555/oauth2/v2.0/token'));
   assert.ok(!mot.isValidTokenUrl('http://login.microsoftonline.com/x/oauth2/v2.0/token'));
