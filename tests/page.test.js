@@ -114,3 +114,29 @@ test('a slow answer for an earlier plate never overwrites the answer for the pla
   assert.doesNotMatch(motResultText(page), /SLOWCAR/);
   page.close();
 });
+
+const FLAGGED_LISTING = '<h1>Car for sale</h1><span>Car for sale, no test drives, cash only on collection, or offers</span>';
+const SEARCH_GRID = '<a href="/marketplace/item/444/"><span>£4,500</span><span>VW Golf</span></a>';
+
+function collapseStyles(page) {
+  const main = page.main();
+  return { maxHeight: main.style.maxHeight, overflow: main.style.overflow };
+}
+
+test('a collapsed listing is restored when leaving it, and Expand works on the next flagged listing', { skip: SKIP }, async () => {
+  const page = open({ path: '/marketplace/item/111/', mainHtml: FLAGGED_LISTING });
+  await page.advance(SETTLE_MS);
+  assert.deepEqual(collapseStyles(page), { maxHeight: '140px', overflow: 'hidden' });
+
+  page.navigate('/marketplace/category/vehicles/', SEARCH_GRID);
+  await page.advance(SETTLE_MS);
+  assert.deepEqual(collapseStyles(page), { maxHeight: '', overflow: '' });
+  assert.equal(page.document.getElementById('cba-flag-banner'), null);
+
+  page.navigate('/marketplace/item/333/', FLAGGED_LISTING);
+  await page.advance(SETTLE_MS);
+  assert.deepEqual(collapseStyles(page), { maxHeight: '140px', overflow: 'hidden' });
+  page.document.getElementById('cba-expand-btn').click();
+  assert.deepEqual(collapseStyles(page), { maxHeight: '', overflow: '' });
+  page.close();
+});

@@ -1073,7 +1073,8 @@ function startCarAssistant(mot) {
     return flags;
   }
 
-  let collapseState = { collapsed: false, originalStyles: null };
+  const NOT_COLLAPSED = { target: null, originalStyles: null };
+  let collapseState = NOT_COLLAPSED;
 
   function clearBanner() {
     const existing = document.getElementById('cba-flag-banner');
@@ -1091,21 +1092,22 @@ function startCarAssistant(mot) {
   }
 
   function collapseTarget(target) {
-    if (!target || collapseState.collapsed) return;
-    collapseState.originalStyles = {
-      maxHeight: target.style.maxHeight,
-      overflow: target.style.overflow,
+    if (!target || collapseState.target === target) return;
+    expandCollapsedTarget();
+    collapseState = {
+      target,
+      originalStyles: { maxHeight: target.style.maxHeight, overflow: target.style.overflow },
     };
     target.style.maxHeight = '140px';
     target.style.overflow = 'hidden';
-    collapseState.collapsed = true;
   }
 
-  function expandTarget(target) {
-    if (!target || !collapseState.collapsed) return;
-    target.style.maxHeight = collapseState.originalStyles.maxHeight;
-    target.style.overflow = collapseState.originalStyles.overflow;
-    collapseState.collapsed = false;
+  function expandCollapsedTarget() {
+    const { target, originalStyles } = collapseState;
+    if (!target) return;
+    target.style.maxHeight = originalStyles.maxHeight;
+    target.style.overflow = originalStyles.overflow;
+    collapseState = NOT_COLLAPSED;
   }
 
   const DESCRIPTION_RETRIES = 6;
@@ -1138,12 +1140,12 @@ function startCarAssistant(mot) {
       );
       collapseTarget(target);
       document.getElementById('cba-expand-btn').addEventListener('click', () => {
-        expandTarget(target);
+        expandCollapsedTarget();
         clearBanner();
       });
     } else {
       clearBanner();
-      expandTarget(target);
+      expandCollapsedTarget();
     }
   }
 
@@ -1159,7 +1161,7 @@ function startCarAssistant(mot) {
     refreshListingScan();
     if (location.href !== lastPath) {
       lastPath = location.href;
-      collapseState = { collapsed: false, originalStyles: null };
+      expandCollapsedTarget();
       clearBanner();
       setTimeout(() => {
         if (adapter.isSearchGrid()) applyFilters();
