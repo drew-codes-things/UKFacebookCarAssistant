@@ -363,14 +363,8 @@ function startCarAssistant(mot) {
         .filter((t) => t.length > 0);
     },
 
-    getTitle(card) {
-      const texts = this._spanTexts(card);
-      let best = '';
-      for (const t of texts) {
-        if (CURRENCY_RE.test(t) && t.length < 20) continue;
-        if (t.length > best.length) best = t;
-      }
-      return best;
+    getCardText(card) {
+      return this._spanTexts(card).join(' ');
     },
 
     getPriceText(card) {
@@ -971,13 +965,13 @@ function startCarAssistant(mot) {
     e.target.value = '';
   });
 
-  function watchlistMatch(title) {
+  function watchlistMatch(cardText) {
     if (state.watchlist.length === 0) return true;
-    const lowerTitle = title.toLowerCase();
+    const lowerCardText = cardText.toLowerCase();
     return state.watchlist.some((line) => {
       const words = line.toLowerCase().split(/\s+/).filter(Boolean);
       if (words.length === 0) return false;
-      return words.every((w) => lowerTitle.includes(w));
+      return words.every((w) => lowerCardText.includes(w));
     });
   }
 
@@ -1007,8 +1001,7 @@ function startCarAssistant(mot) {
       }
 
       if (visible && watchlistActive) {
-        const title = adapter.getTitle(card);
-        if (!watchlistMatch(title)) visible = false;
+        if (!watchlistMatch(adapter.getCardText(card))) visible = false;
       }
 
       card.style.display = visible ? '' : 'none';

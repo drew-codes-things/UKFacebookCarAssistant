@@ -183,3 +183,21 @@ test('a listing expanded by the user stays expanded when its text changes', { sk
   assert.deepEqual(collapseStyles(page), { maxHeight: '', overflow: '' });
   page.close();
 });
+
+function gridCard(id, spans) {
+  return `<div class="card" data-id="${id}"><div><div><a href="/marketplace/item/${id}/">`
+    + `${spans.map((text) => `<span>${text}</span>`).join('')}</a></div></div></div>`;
+}
+
+function cardIsShown(page, id) {
+  return page.document.querySelector(`.card[data-id="${id}"]`).style.display !== 'none';
+}
+
+test('the watchlist matches a card whose location is longer than its title', { skip: SKIP }, async () => {
+  const grid = gridCard('501', ['£4,500', 'VW Golf', 'Stoke-on-Trent, ENG']) + gridCard('502', ['£3,000', 'Ford Fiesta', 'Leeds']);
+  const page = open({ path: '/marketplace/category/vehicles/', mainHtml: grid, stored: { cba_watchlist: JSON.stringify(['VW Golf']) } });
+  await page.advance(SETTLE_MS);
+  assert.equal(cardIsShown(page, '501'), true);
+  assert.equal(cardIsShown(page, '502'), false);
+  page.close();
+});
