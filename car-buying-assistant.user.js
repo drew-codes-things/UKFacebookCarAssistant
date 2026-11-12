@@ -646,14 +646,16 @@ function startCarAssistant(mot) {
 
   const REQUEST_TIMEOUT_MS = 20000;
   const TOKEN_EXPIRY_MARGIN_MS = 60 * 1000;
-  const PLATE_SCAN_RETRIES = 8;
-  const PLATE_SCAN_RETRY_MS = 500;
+  const LISTING_ID_RE = /\/marketplace\/item\/(\d+)/;
+  const NO_LISTING = '';
   const SECRET_FIELDS = ['clientSecret', 'apiKey'];
   const NO_TOKEN = { value: '', expiresAt: 0 };
 
   const motCache = new Map();
   let dvsaToken = NO_TOKEN;
   let listingMileage = null;
+  let motLookupGeneration = 0;
+  let scannedListing = { id: NO_LISTING, text: null };
 
   const motResult = document.getElementById('cba-mot-result');
   const motDetected = document.getElementById('cba-mot-detected');
@@ -779,14 +781,27 @@ function startCarAssistant(mot) {
     );
   }
 
-  async function lookUpMot(plate) {
+  function cancelPendingMotLookups() {
+    motLookupGeneration += 1;
+  }
+
+  function startMotLookup() {
+    cancelPendingMotLookups();
+    return motLookupGeneration;
+  }
+
+  function isCurrentMotLookup(lookupId) {
+    return lookupId === motLookupGeneration;
+  }
+
+  async function lookUpMot(plate, lookupId) {
     motResult.replaceChildren(element('div', { class: 'cba-hint', text: `Looking up ${plate}…` }));
     try {
       if (!motCache.has(plate)) motCache.set(plate, await fetchVehicle(plate));
-      renderVehicle(motCache.get(plate));
+      if (isCurrentMotLookup(lookupId)) renderVehicle(motCache.get(plate));
     } catch (error) {
       console.error('[UKFacebookCarAssistant] MOT lookup failed', error);
-      motResult.replaceChildren(element('div', { class: 'cba-warn', text: error.message }));
+      if (isCurrentMotLookup(lookupId)) motResult.replaceChildren(element('div', { class: 'cba-warn', text: error.message }));
     }
   }
 
@@ -801,6 +816,7 @@ function startCarAssistant(mot) {
 
   function checkMot(raw) {
     if (!String(raw || '').trim()) return;
+    const lookupId = startMotLookup();
     const input = document.getElementById('cba-mot-input');
     const formatted = formatPlate(raw);
     const plan = mot.planMotCheck(raw, loadDvsaCredentials());
@@ -817,7 +833,7 @@ function startCarAssistant(mot) {
       return;
     }
     showPlateFormatWarning(formatted, 'checking');
-    lookUpMot(plan.plate);
+    lookUpMot(plan.plate, lookupId);
   }
 
   document.getElementById('cba-mot-btn').addEventListener('click', () => {
@@ -886,22 +902,39 @@ function startCarAssistant(mot) {
     return main ? main.innerText : '';
   }
 
-  function scanListingForPlates(attempt = 0) {
+  function currentListingId() {
+    const match = location.pathname.match(LISTING_ID_RE);
+    return match ? match[1] : NO_LISTING;
+  }
+
+  function showSpottedPlates(plates) {
     motDetected.replaceChildren();
-    listingMileage = null;
-    if (!adapter.isIndividualListing()) return;
-    const text = listingText();
-    const plates = mot.findPlates(text);
-    if (!plates.length && attempt < PLATE_SCAN_RETRIES) {
-      setTimeout(() => scanListingForPlates(attempt + 1), PLATE_SCAN_RETRY_MS);
-      return;
-    }
-    listingMileage = mot.parseListingMileage(text);
     if (!plates.length) return;
     motDetected.append(
       element('div', { class: 'cba-hint', text: 'Spotted in the listing (tap to check):' }),
       ...plates.map((plate) => element('button', { class: 'cba-btn secondary cba-chip', text: plate, onclick: () => checkMot(plate) })),
     );
+  }
+
+  function leaveListing() {
+    cancelPendingMotLookups();
+    motResult.replaceChildren();
+    motDetected.replaceChildren();
+    listingMileage = null;
+  }
+
+  function refreshListingScan() {
+    const id = currentListingId();
+    if (id !== scannedListing.id) {
+      leaveListing();
+      scannedListing = { id, text: null };
+    }
+    if (id === NO_LISTING) return;
+    const text = listingText();
+    if (text === scannedListing.text) return;
+    scannedListing.text = text;
+    listingMileage = mot.parseListingMileage(text);
+    showSpottedPlates(mot.findPlates(text));
   }
 
   fillDvsaSettings();
@@ -1123,12 +1156,11 @@ function startCarAssistant(mot) {
 
   let lastPath = location.href;
   setInterval(() => {
+    refreshListingScan();
     if (location.href !== lastPath) {
       lastPath = location.href;
       collapseState = { collapsed: false, originalStyles: null };
       clearBanner();
-      motResult.replaceChildren();
-      scanListingForPlates();
       setTimeout(() => {
         if (adapter.isSearchGrid()) applyFilters();
         if (adapter.isIndividualListing()) runIndividualListingChecks();
@@ -1138,5 +1170,5 @@ function startCarAssistant(mot) {
 
   if (adapter.isSearchGrid()) applyFilters();
   if (adapter.isIndividualListing()) runIndividualListingChecks();
-  scanListingForPlates();
+  refreshListingScan();
 }

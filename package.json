@@ -5,5 +5,8 @@
   "description": "Tampermonkey userscript: DVSA MOT history, price/watchlist filtering and time-waster flagging for Facebook Marketplace",
   "scripts": {
     "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
   }
 }

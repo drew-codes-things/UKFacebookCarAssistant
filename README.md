@@ -45,8 +45,11 @@ The client secret expires; DVSA's docs explain how to request a new one. Until a
 
 ## Tests
 
-The plate, mileage and MOT logic runs under Node without a browser:
+The plate, mileage and MOT logic runs under Node without a browser. The Marketplace page tests load the userscript
+into [jsdom](https://github.com/jsdom/jsdom) with stubbed Tampermonkey functions and a fake Marketplace page (nothing
+is sent to Facebook or the DVSA); they are skipped until `npm install` has fetched jsdom:
 
 ```
+npm install
 npm test
 ```
