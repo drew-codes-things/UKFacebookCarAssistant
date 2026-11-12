@@ -201,3 +201,12 @@ test('the watchlist matches a card whose location is longer than its title', { s
   assert.equal(cardIsShown(page, '502'), false);
   page.close();
 });
+
+test('a model name that looks like a plate does not stop a real plate being offered later', { skip: SKIP }, async () => {
+  const page = open({ path: '/marketplace/item/111/', mainHtml: '<h1>2014 Audi A3 TDI S line</h1>' });
+  await page.advance(SETTLE_MS);
+  page.setMain('<h1>2014 Audi A3 TDI S line</h1><p>Reg YD14 ABC, two owners</p>');
+  await page.advance(SETTLE_MS);
+  assert.deepEqual(chipPlates(page), ['YD14ABC']);
+  page.close();
+});

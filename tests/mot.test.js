@@ -42,6 +42,32 @@ test('findPlates ignores ordinary words and an empty listing', () => {
   assert.deepEqual(mot.findPlates(undefined), []);
 });
 
+test('findPlates ignores model names and words that only look like plates', () => {
+  assert.deepEqual(mot.findPlates('2014 Audi A3 TDI S line'), []);
+  assert.deepEqual(mot.findPlates('BMW X5 for sale, V5 log book present'), []);
+  assert.deepEqual(mot.findPlates('Toyota GT86 for sale'), []);
+  assert.deepEqual(mot.findPlates('Golf V8 GTI, BMW 320D, Mercedes GLC 220d'), []);
+});
+
+test('findPlates accepts spaces and hyphens between the groups', () => {
+  assert.deepEqual(mot.findPlates('Reg is ABC 123D'), ['ABC123D']);
+  assert.deepEqual(mot.findPlates('AB12  CDE'), ['AB12CDE']);
+  assert.deepEqual(mot.findPlates('AB12-CDE'), ['AB12CDE']);
+  assert.deepEqual(mot.findPlates('P123-ABC'), ['P123ABC']);
+});
+
+test('findPlates only accepts current-format age identifiers that have been issued', () => {
+  assert.deepEqual(mot.findPlates('YD02 ABC, YD14 ABC, YD26 ABC, YD51 ABC, YD76 ABC', TODAY), ['YD02ABC', 'YD14ABC', 'YD26ABC', 'YD51ABC', 'YD76ABC']);
+  assert.deepEqual(mot.findPlates('YD00 ABC, YD01 ABC, YD27 ABC, YD50 ABC, YD77 ABC, YD86 ABC', TODAY), []);
+  assert.deepEqual(mot.findPlates('YD27 ABC', new Date('2027-03-01T12:00:00Z')), ['YD27ABC']);
+});
+
+test('findPlates applies the letter rules of each format', () => {
+  assert.deepEqual(mot.findPlates('ZA12 BCD, AI12 BCD, AB12 BQD', TODAY), []);
+  assert.deepEqual(mot.findPlates('AB12 BCZ', TODAY), ['AB12BCZ']);
+  assert.deepEqual(mot.findPlates('O123 ABC, U123 ABC, ABC 123O, ABC 0123D'), []);
+});
+
 test('parseListingMileage prefers the Facebook "Driven" field', () => {
   assert.deepEqual(mot.parseListingMileage('Was 90,000 miles. Driven 85,000 miles'), { value: 85000, unit: 'MI' });
   assert.deepEqual(mot.parseListingMileage('only 45k miles'), { value: 45000, unit: 'MI' });

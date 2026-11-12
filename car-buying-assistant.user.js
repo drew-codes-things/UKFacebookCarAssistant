@@ -29,10 +29,18 @@ const CarAssistantMot = (() => {
   const MIN_YEARS_FOR_RATE = 0.5;
 
   const PLATE_PATTERNS = [
-    /\b([A-Z]{2}\d{2})\s?([A-Z]{3})\b/gi,
-    /\b([A-HJ-PR-Y]\d{1,3})\s?([A-Z]{3})\b/gi,
-    /\b([A-Z]{3}\d{1,3}[A-HJ-PR-Y])\b/gi,
+    /\b[A-HJ-PR-Y]{2}(?<age>\d{2})[ \u00a0-]{0,3}(?<letters>[A-HJ-PR-Z]{3})\b/gi,
+    /\b[A-HJ-NP-TV-Y][1-9]\d{0,2}[ \u00a0-]{0,3}(?<letters>[A-HJ-PR-Y]{3})\b/gi,
+    /\b(?<letters>[A-HJ-PR-Y]{3})[ \u00a0-]{0,3}[1-9]\d{0,2}[A-HJ-NP-TV-Y]\b/gi,
   ];
+  const PLATE_STOP_WORDS = new Set([
+    'AND', 'FOR', 'THE', 'NEW', 'OLD', 'LOG', 'TAX', 'MOT', 'FSH', 'ONO', 'OBO', 'MPG', 'MPH', 'BHP',
+    'GTD', 'GTS', 'CRD', 'VVT', 'AMG', 'BMW', 'CLA', 'CLK', 'CLS', 'GLA', 'GLC', 'GLE', 'GLS', 'SLK',
+  ]);
+  const FIRST_MARCH_AGE = 2;
+  const FIRST_SEPTEMBER_AGE = 51;
+  const SEPTEMBER_AGE_OFFSET = 50;
+  const YEARS_PER_CENTURY = 100;
   const DRIVEN_RE = /driven\s+(\d[\d,.]*)\s*(k)?\s*(miles|mi|km|kilomet(?:re|er)s)\b/i;
   const MILEAGE_RE = /\b(\d[\d,.]*)\s*(k)?\s*(miles|mi|km|kilomet(?:re|er)s)\b/i;
 
@@ -51,12 +59,25 @@ const CarAssistantMot = (() => {
     return /^[A-Z0-9]{2,8}$/.test(plate) ? plate : '';
   }
 
-  function findPlates(text) {
+  function isIssuedAgeIdentifier(age, today) {
+    const currentYear = new Date(today).getUTCFullYear() % YEARS_PER_CENTURY;
+    const isMarchIssue = age >= FIRST_MARCH_AGE && age <= currentYear;
+    const isSeptemberIssue = age >= FIRST_SEPTEMBER_AGE && age <= currentYear + SEPTEMBER_AGE_OFFSET;
+    return isMarchIssue || isSeptemberIssue;
+  }
+
+  function isPlausiblePlate(groups, today) {
+    if (PLATE_STOP_WORDS.has(groups.letters.toUpperCase())) return false;
+    return groups.age === undefined || isIssuedAgeIdentifier(Number(groups.age), today);
+  }
+
+  function findPlates(text, today = new Date()) {
     const found = [];
     for (const pattern of PLATE_PATTERNS) {
       for (const match of String(text || '').matchAll(pattern)) {
+        if (!isPlausiblePlate(match.groups, today)) continue;
         const plate = normalisePlate(match[0]);
-        if (plate && /\d/.test(plate) && !found.includes(plate)) found.push(plate);
+        if (plate && !found.includes(plate)) found.push(plate);
       }
     }
     return found;
