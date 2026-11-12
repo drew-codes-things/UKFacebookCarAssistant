@@ -363,6 +363,8 @@ function startCarAssistant(mot) {
   const FB_CARD_ANCESTOR_LEVELS = 3;
   const LISTING_ID_RE = /\/marketplace\/item\/(\d+)/;
   const NO_LISTING = '';
+  const SEARCH_GRID_PATH_RE = /^\/marketplace\/(?:[^/]+\/)?(?:category|search|vehicles)(?:\/|$)/;
+  const MARKETPLACE_HOME_PATH_RE = /^\/marketplace\/?$/;
 
   function fbCardFromAnchor(anchor) {
     let node = anchor;
@@ -374,8 +376,7 @@ function startCarAssistant(mot) {
 
   const FACEBOOK_ADAPTER = {
     isSearchGrid() {
-      return /\/marketplace\/(category|search)?/.test(location.pathname) &&
-        !/\/marketplace\/item\//.test(location.pathname);
+      return SEARCH_GRID_PATH_RE.test(location.pathname) || MARKETPLACE_HOME_PATH_RE.test(location.pathname);
     },
 
     getListingId() {

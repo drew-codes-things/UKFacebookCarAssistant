@@ -210,3 +210,27 @@ test('a model name that looks like a plate does not stop a real plate being offe
   assert.deepEqual(chipPlates(page), ['YD14ABC']);
   page.close();
 });
+
+test('stored history and watchlist that are not lists do not stop the widget starting', { skip: SKIP }, async () => {
+  const page = open({
+    path: '/marketplace/category/vehicles/',
+    stored: { cba_mot_history: '{}', cba_watchlist: '"VW Golf"' },
+  });
+  await page.advance(SETTLE_MS);
+  assert.equal(page.document.getElementById('cba-mot-count').textContent, '0');
+  assert.equal(page.document.getElementById('cba-watchlist-input').value, '');
+  page.close();
+});
+
+test('the price filter only runs on search and category grids', { skip: SKIP }, async () => {
+  const grid = gridCard('601', ['£4,500', 'VW Golf', 'Leeds']);
+  const stored = { cba_settings: JSON.stringify({ priceMin: '', priceMax: '1000', widgetCollapsed: false }) };
+  const gridPaths = ['/marketplace/', '/marketplace/category/vehicles/', '/marketplace/london/vehicles/', '/marketplace/search/'];
+  const otherPaths = ['/marketplace/you/selling/', '/marketplace/inbox/', '/marketplace/create/vehicle/'];
+  for (const pagePath of [...gridPaths, ...otherPaths]) {
+    const page = open({ path: pagePath, mainHtml: grid, stored });
+    await page.advance(SETTLE_MS);
+    assert.equal(cardIsShown(page, '601'), otherPaths.includes(pagePath), pagePath);
+    page.close();
+  }
+});
